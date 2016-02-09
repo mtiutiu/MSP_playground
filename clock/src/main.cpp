@@ -25,6 +25,7 @@ static const uint32_t DIGITS_SETUP_MODE_BLINK_INTERVAL_MS = 300;
 #define HOURS_UNITS_ANODE       2
 #define HOURS_DECIMALS_ANODE    3
 #define DISPLAY_DOT_INDEX       10
+#define DISPLAY_BLANK_INDEX     11
 
 static const uint8_t ANODE_DATA[] = {
   0b00000001,
@@ -97,7 +98,7 @@ static void displaySegmentData(uint8_t data, uint8_t digit) {
 }
 
 static void blankDisplay() {
-  displaySegmentData(0xFF, 0);
+  displaySegmentData(SEGMENT_DATA[DISPLAY_BLANK_INDEX], 0);
 }
 
 static void displayTime(time_t* currentTime, bool blinkMinutes, bool blinkHours) {

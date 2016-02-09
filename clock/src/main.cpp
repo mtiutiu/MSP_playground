@@ -85,7 +85,7 @@ enum ClockState {
   MINUTES_SETUP_STATE,
   HOURS_SETUP_STATE,
 };
-static uint8_t currentState = DISPLAY_STATE;
+static uint8_t nextState = DISPLAY_STATE;
 // -----------------------------------------------------------------------------
 
 // ---------------------- Display handling -------------------------------------
@@ -244,12 +244,12 @@ void checkKeysEvent() {
 
 // ----------------------- FSM handling ----------------------------------------
 void checkStateMachine() {
-  switch(currentState) {
+  switch(nextState) {
     case DISPLAY_STATE:
       hoursBlink = false;
       minutesBlink = false;
       if(lastKeyEvent == LONG_KEYPRESS_EVENT) {
-        currentState = MINUTES_SETUP_STATE;
+        nextState = MINUTES_SETUP_STATE;
         lastKeyEvent = NO_KEYPRESS_EVENT;
       }
     break;
@@ -276,7 +276,7 @@ void checkStateMachine() {
       }
 
       if(lastKeyEvent == LONG_KEYPRESS_EVENT) {
-        currentState = HOURS_SETUP_STATE;
+        nextState = HOURS_SETUP_STATE;
         lastKeyEvent = NO_KEYPRESS_EVENT;
       }
     break;
@@ -303,7 +303,7 @@ void checkStateMachine() {
       }
 
       if(lastKeyEvent == LONG_KEYPRESS_EVENT) {
-        currentState = DISPLAY_STATE;
+        nextState = DISPLAY_STATE;
         lastKeyEvent = NO_KEYPRESS_EVENT;
       }
     break;

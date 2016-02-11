@@ -52,6 +52,7 @@ static const uint8_t SEGMENT_DATA[] = {
 // -----------------------------------------------------------------------------
 
 // ------------------------------ Keys vars ------------------------------------
+static const uint8_t MENU_KEY = PUSH2;
 static const uint32_t SHORT_KEYPRESS_MIN_THRESHOLD_MS = 20;
 static const uint32_t SHORT_KEYPRESS_MAX_THRESHOLD_MS = 800;
 static const uint32_t LONG_KEYPRESS_MAX_THRESHOLD_MS = 1000;
@@ -77,7 +78,7 @@ static KeyEvent lastKeyEvent = NO_KEYPRESS_EVENT;
 // --------------------------- Sleep vars --------------------------------------
 static bool wakeUpFlag = false;
 static const uint32_t SLEEP_INTERVAL_MS = 100;
-static const uint32_t INACTIVITY_SLEEP_INTERVAL_MS = 5000;
+static const uint32_t INACTIVITY_SLEEP_INTERVAL_MS = 4000;
 // -----------------------------------------------------------------------------
 
 // --------------------------- FSM vars ----------------------------------------
@@ -87,6 +88,27 @@ enum ClockState {
   HOURS_SETUP_STATE,
 };
 static uint8_t nextState = DISPLAY_STATE;
+// -----------------------------------------------------------------------------
+
+// -------------------------- Time handling ------------------------------------
+#pragma vector=TIMER0_A0_VECTOR
+__interrupt void Timer_A (void) {
+  rtc++;
+
+  #ifndef RTCSUBSECONDS
+  secondsTick = !secondsTick;
+  #else
+  #error "Don't know how to handle subsecond ticks yet!!!"
+  #endif
+}
+
+static time_t* getRtcTime(RealTimeClock* rtc, time_t* currentTime) {
+  currentTime->seconds = rtc->RTC_sec;
+  currentTime->minutes = rtc->RTC_min;
+  currentTime->hours = rtc->RTC_hr;
+
+  return currentTime;
+}
 // -----------------------------------------------------------------------------
 
 // ---------------------- Display handling -------------------------------------
@@ -110,21 +132,23 @@ static void displayTime(time_t* currentTime, bool blinkMinutes, bool blinkHours)
     lastBlinkTime = millis();
   }
 
-  // extract minutes/hours digits values for indexing the segment data arrays
+  // extract minutes/hours digit values for indexing the segment data arrays
   uint8_t minutesUnitsDigitIndex = currentTime->minutes % 10;
   uint8_t minutesDecimalsDigitIndex = currentTime->minutes / 10;
   uint8_t hoursUnitsDigitIndex = currentTime->hours % 10;
   uint8_t hoursDecimalsDigitIndex = currentTime->hours / 10;
 
   // minutes units display
-  displaySegmentData(SEGMENT_DATA[minutesUnitsDigitIndex],
+  displaySegmentData(
+    SEGMENT_DATA[minutesUnitsDigitIndex],
     (blinkMinutes && blinkTicker) ?
     (ANODE_DATA[MINUTES_UNITS_ANODE] & ~ANODE_DATA[MINUTES_UNITS_ANODE]) :
     ANODE_DATA[MINUTES_UNITS_ANODE]
   );
 
   // minutes decimals display
-  displaySegmentData(SEGMENT_DATA[minutesDecimalsDigitIndex],
+  displaySegmentData(
+    SEGMENT_DATA[minutesDecimalsDigitIndex],
     (blinkMinutes && blinkTicker) ?
     (ANODE_DATA[MINUTES_DECIMALS_ANODE] & ~ANODE_DATA[MINUTES_DECIMALS_ANODE]) :
     ANODE_DATA[MINUTES_DECIMALS_ANODE]
@@ -141,32 +165,12 @@ static void displayTime(time_t* currentTime, bool blinkMinutes, bool blinkHours)
   );
 
   // hours decimals display
-  displaySegmentData(SEGMENT_DATA[hoursDecimalsDigitIndex],
+  displaySegmentData(
+    SEGMENT_DATA[(hoursDecimalsDigitIndex != 0) ? hoursDecimalsDigitIndex : DISPLAY_BLANK_INDEX],
     (blinkHours && blinkTicker) ?
     (ANODE_DATA[HOURS_DECIMALS_ANODE] & ~ANODE_DATA[HOURS_DECIMALS_ANODE]) :
     ANODE_DATA[HOURS_DECIMALS_ANODE]
   );
-}
-// -----------------------------------------------------------------------------
-
-// -------------------------- Time handling ------------------------------------
-#pragma vector=TIMER0_A0_VECTOR
-__interrupt void Timer_A (void) {
-  rtc++;
-
-  #ifndef RTCSUBSECONDS
-  secondsTick = !secondsTick;
-  #else
-  #error "Don't know how to handle subsecond ticks yet!!!"
-  #endif
-}
-
-static time_t* getRtcTime(RealTimeClock* rtc, time_t* currentTime) {
-  currentTime->seconds = rtc->RTC_sec;
-  currentTime->minutes = rtc->RTC_min;
-  currentTime->hours = rtc->RTC_hr;
-
-  return currentTime;
 }
 // -----------------------------------------------------------------------------
 
@@ -202,11 +206,11 @@ static void keyChangeHandler() {
   wakeUpFlag = true;
 }
 
-void checkKeysEvent() {
-  if((digitalRead(PUSH2) == LOW) && (keyEvent.state != PRESSED)) {
+static void checkKeysEvent() {
+  if((digitalRead(MENU_KEY) == LOW) && (keyEvent.state != PRESSED)) {
     keyEvent.timestamp = millis();
     keyEvent.state = PRESSED;
-  } else if((digitalRead(PUSH2) == HIGH) && (keyEvent.state != RELEASED)) {
+  } else if((digitalRead(MENU_KEY) == HIGH) && (keyEvent.state != RELEASED)) {
     // calculate elapsed time since PRESS state
     uint32_t keyPressDuration = millis() - keyEvent.timestamp;
 
@@ -244,7 +248,7 @@ void checkKeysEvent() {
 // -----------------------------------------------------------------------------
 
 // ----------------------- FSM handling ----------------------------------------
-void checkStateMachine() {
+static void checkStateMachine() {
   switch(nextState) {
     case DISPLAY_STATE:
       hoursBlink = false;
@@ -325,14 +329,23 @@ void setup() {
   Serial.begin(9600);
   #endif
 
+  // set all pins as output for low power
+  #ifdef __MSP430_HAS_PORT1_R__
+  P1DIR = 0xFF;
+  #endif
+  #ifdef __MSP430_HAS_PORT2_R__
+  P2DIR = 0xFF;
+  #endif
+
+  // now set required pins mode as appropriate
   pinMode(DISPLAY_LATCH_PIN, OUTPUT);
-  pinMode(PUSH2, INPUT_PULLUP);
+  pinMode(MENU_KEY, INPUT_PULLUP);
 
   initDisplay();
 
   rtc.begin();
 
-  attachInterrupt(PUSH2, keyChangeHandler, CHANGE);
+  attachInterrupt(MENU_KEY, keyChangeHandler, CHANGE);
 
   #ifdef DEBUG
   Serial.println("started...");

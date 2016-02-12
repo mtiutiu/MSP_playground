@@ -320,7 +320,9 @@ static void initDisplay() {
   SPI.begin();
   SPI.setBitOrder(MSBFIRST);
   SPI.setDataMode(SPI_MODE3);
+  #if F_CPU >= 4000000L
   SPI.setClockDivider(4);
+  #endif
   blankDisplay();
 }
 

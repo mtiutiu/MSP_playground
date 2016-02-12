@@ -139,7 +139,7 @@ RealTimeClock& RealTimeClock::operator++() {    // Overload ++ operator for writ
     return *this;
 };
 
-RealTimeClock& RealTimeClock::operator++(int) { // PostFix variant
+RealTimeClock& RealTimeClock::operator++(int16_t) { // PostFix variant
     RealTimeClock tmp(*this);
     ++(*this);
     return tmp;
@@ -177,7 +177,7 @@ void RealTimeClock::Inc_hr(void) {
     };
 };
 
-void RealTimeClock::Set_Time(char hrs=0, char mins=0, char secs=0) {
+void RealTimeClock::Set_Time(uint8_t hrs=0, uint8_t mins=0, uint8_t secs=0) {
     if ((hrs>=0 && hrs <24) && (mins>=0 && mins<60) && (secs>=0 && secs<60)) {
         RTC_hr = hrs;   // Set time to values given in parameters
         RTC_min = mins;
@@ -193,9 +193,9 @@ void RealTimeClock::Set_Time(char hrs=0, char mins=0, char secs=0) {
 #ifdef RTCWITHDATE
 //array of Days per month. At the expense of 1 extra byte, we avoid having to do additions/subtractions to cope
 //with converting our 1..12 months to 0..11 array indices. easier to waste 0, and lookup 1..12
-char RTC_DaysPerMonth[13]={0,31,28,31,30,31,30,31,31,30,31,30,31};
+uint8_t RTC_DaysPerMonth[13]={0,31,28,31,30,31,30,31,31,30,31,30,31};
 
-void RealTimeClock::Set_Date(int year=2013, char month=1, char day=1) {
+void RealTimeClock::Set_Date(int16_t year=2013, uint8_t month=1, uint8_t day=1) {
     Set_Year(year); //set the year regardless - it will make the next check possible.
     if ((month>=1 && month<=12) && (day>=1 && day<=RTC_DaysPerMonth[month])){
       RTC_day=day;
@@ -218,7 +218,7 @@ void RealTimeClock::Inc_month(void) {
   };
 };
 
-void RealTimeClock::Set_Year(int year) {
+void RealTimeClock::Set_Year(int16_t year) {
   RTC_year=year;
   RTC_DaysPerMonth[2]=(RTC_year&0x3)?28:29;  //set the number of days for February in our array
 };

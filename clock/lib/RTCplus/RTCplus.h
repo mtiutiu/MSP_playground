@@ -85,7 +85,7 @@
 #ifndef RTCplus_h
 #define RTCplus_h
 
-//#include <legacyMSP430.h>
+#include <stdint.h>
 
 //Uncomment the following #DEFINE to enable Date support
 //#define RTCWITHDATE
@@ -101,22 +101,22 @@ public:
     void begin(void);                            //sets up the clocks.
     void stop(void);
     void start(void);
-    void Set_Time(char hr, char mins, char secs);
-    void Set_Date(int year, char month, char day);
-    void Set_Year(int year);
+    void Set_Time(uint8_t hr, uint8_t mins, uint8_t secs);
+    void Set_Date(int16_t year, uint8_t month, uint8_t day);
+    void Set_Year(int16_t year);
 #ifdef RTCSUBSECONDS
-    int RTC_chunk; // this holds the number of 1/256 time samples.
+    int16_t RTC_chunk; // this holds the number of 1/256 time samples.
 #endif
-    char RTC_sec; // This how you read the time, by reading the vars
-    char RTC_min;
-    char RTC_hr;
+    uint8_t RTC_sec; // This how you read the time, by reading the vars
+    uint8_t RTC_min;
+    uint8_t RTC_hr;
 #ifdef RTCWITHDATE
-    char RTC_day;
-    char RTC_month;
-    int  RTC_year;
+    uint8_t RTC_day;
+    uint8_t RTC_month;
+    int16_t  RTC_year;
 #endif
     RealTimeClock& operator++();    // Overload ++ operator for writing convenience (Prefix Variant)
-    RealTimeClock& operator++(int); // PostFix variant
+    RealTimeClock& operator++(int16_t); // PostFix variant
 
     void Inc_sec(void);  //the Inc_ functions allow you to increment one value, but if
     void Inc_min(void);  //it overflows, it will then carry on up the line, eg if time

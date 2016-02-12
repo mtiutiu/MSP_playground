@@ -2,16 +2,11 @@
 #include <SPI.h>
 #include <RTCplus.h>
 
+// serial debug is suported for msp430g2553 with more flash/sram
 //#define DEBUG
 
 // ------------------------------ Time vars ------------------------------------
-RealTimeClock rtc;
-typedef struct {
-  uint8_t seconds;
-  uint8_t minutes;
-  uint8_t hours;
-} time_t;
-static time_t currentTime = {0, 0, 0};
+static RealTimeClock rtc;
 static bool minutesBlink = false;
 static bool hoursBlink = false;
 static volatile bool secondsTick = false;
@@ -60,18 +55,20 @@ typedef enum {
   PRESSED,
   RELEASED
 } KeyState;
+
 typedef enum {
   NO_KEYPRESS_EVENT,
   SHORT_KEYPRESS_EVENT,
   LONG_KEYPRESS_EVENT
 } KeyEvent;
+
 typedef struct {
   KeyState state;
   KeyEvent event;
   uint32_t timestamp;
 } key_event_t;
 
-static key_event_t keyEvent = {RELEASED, NO_KEYPRESS_EVENT, 0};
+static key_event_t keyEvent = { RELEASED, NO_KEYPRESS_EVENT, 0 };
 static KeyEvent lastKeyEvent = NO_KEYPRESS_EVENT;
 // -----------------------------------------------------------------------------
 
@@ -101,14 +98,6 @@ __interrupt void Timer_A (void) {
   #error "Don't know how to handle subsecond ticks yet!!!"
   #endif
 }
-
-static time_t* getRtcTime(RealTimeClock* rtc, time_t* currentTime) {
-  currentTime->seconds = rtc->RTC_sec;
-  currentTime->minutes = rtc->RTC_min;
-  currentTime->hours = rtc->RTC_hr;
-
-  return currentTime;
-}
 // -----------------------------------------------------------------------------
 
 // ---------------------- Display handling -------------------------------------
@@ -123,7 +112,7 @@ static void blankDisplay() {
   displaySegmentData(SEGMENT_DATA[DISPLAY_BLANK_INDEX], 0);
 }
 
-static void displayTime(time_t* currentTime, bool blinkMinutes, bool blinkHours) {
+static void displayTime(RealTimeClock* rtc, bool blinkMinutes, bool blinkHours) {
   static uint32_t lastBlinkTime = 0;
   static bool blinkTicker = false;
 
@@ -133,10 +122,10 @@ static void displayTime(time_t* currentTime, bool blinkMinutes, bool blinkHours)
   }
 
   // extract minutes/hours digit values for indexing the segment data arrays
-  uint8_t minutesUnitsDigitIndex = currentTime->minutes % 10;
-  uint8_t minutesDecimalsDigitIndex = currentTime->minutes / 10;
-  uint8_t hoursUnitsDigitIndex = currentTime->hours % 10;
-  uint8_t hoursDecimalsDigitIndex = currentTime->hours / 10;
+  uint8_t minutesUnitsDigitIndex = rtc->RTC_min % 10;
+  uint8_t minutesDecimalsDigitIndex = rtc->RTC_min / 10;
+  uint8_t hoursUnitsDigitIndex = rtc->RTC_hr % 10;
+  uint8_t hoursDecimalsDigitIndex = rtc->RTC_hr / 10;
 
   // minutes units display
   displaySegmentData(
@@ -248,7 +237,7 @@ static void checkKeysEvent() {
 // -----------------------------------------------------------------------------
 
 // ----------------------- FSM handling ----------------------------------------
-static void checkStateMachine() {
+static void checkMenuKeyStateMachine() {
   switch(nextState) {
     case DISPLAY_STATE:
       hoursBlink = false;
@@ -270,13 +259,12 @@ static void checkStateMachine() {
       if(lastKeyEvent == SHORT_KEYPRESS_EVENT) {
         rtc.stop();
         rtc.Inc_min();
-        currentTime.minutes = rtc.RTC_min;
         rtc.start();
         lastKeyEvent = NO_KEYPRESS_EVENT;
 
         #ifdef DEBUG
         Serial.print(" -> fsm: minutes increment value: ");
-        Serial.println(currentTime.minutes);
+        Serial.println(rtc.RTC_min);
         #endif
       }
 
@@ -297,13 +285,12 @@ static void checkStateMachine() {
       if(lastKeyEvent == SHORT_KEYPRESS_EVENT) {
         rtc.stop();
         rtc.Inc_hr();
-        currentTime.hours = rtc.RTC_hr;
         rtc.start();
         lastKeyEvent = NO_KEYPRESS_EVENT;
 
         #ifdef DEBUG
         Serial.print(" -> fsm: hours increment value: ");
-        Serial.println(currentTime.hours);
+        Serial.println(rtc.RTC_hr);
         #endif
       }
 
@@ -350,13 +337,13 @@ void setup() {
   attachInterrupt(MENU_KEY, keyChangeHandler, CHANGE);
 
   #ifdef DEBUG
-  Serial.println("started...");
+  Serial.println("clock started...");
   #endif
 }
 
 void loop() {
-  displayTime(getRtcTime(&rtc, &currentTime), minutesBlink, hoursBlink);
+  displayTime(&rtc, minutesBlink, hoursBlink);
   checkKeysEvent();
-  checkStateMachine();
+  checkMenuKeyStateMachine();
   checkSleep(INACTIVITY_SLEEP_INTERVAL_MS);
 }
